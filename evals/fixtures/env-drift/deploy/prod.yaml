@@ -1,0 +1,6 @@
+env:
+  DATABASE_URL: postgres://prod/db
+  REDIS_URL: redis://prod:6379
+  STRIPE_WEBHOOK_SECRET: whsec_prod
+  SESSION_SIGNING_KEY: sk_prod
+  LOG_LEVEL: info

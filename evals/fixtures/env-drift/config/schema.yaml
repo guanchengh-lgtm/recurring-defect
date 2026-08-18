@@ -1,0 +1,10 @@
+# Required environment for every deployed service.
+required:
+  - DATABASE_URL
+  - REDIS_URL
+  - STRIPE_WEBHOOK_SECRET
+  - SESSION_SIGNING_KEY
+  - EXPORT_BUCKET
+optional:
+  - LOG_LEVEL
+  - FEATURE_FLAGS_URL

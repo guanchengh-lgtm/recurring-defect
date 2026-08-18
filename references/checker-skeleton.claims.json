@@ -1,0 +1,30 @@
+{
+  "pass": "build checker-skeleton + fixture-generator-skeleton references (handoff 2026-08-08)",
+  "size": "full-minus-ci",
+  "size_reason": "reference artifact every future skill invocation depends on; skill dir has no CI, so skeleton-selftest.sh is the standing runnable assertion instead of a pipeline step",
+  "form": "gating rule (demo checker exits 1 on findings, 2 on structural failure)",
+  "shape": "a checker whose structural failures are indistinguishable from a clean result (fail-open); every invocation of the skill re-derives this plumbing and gets it wrong",
+  "structure": "demo adapter parses the phase/component structure the platform-spec eval fixture already declares (read-only; fixture never modified)",
+  "rules": [
+    "R1 phase-closure over a declared partial order (PHASES_GUARANTEED_FIRST; unordered cross-phase edges violate in both directions)",
+    "R2 every declared phase has acceptance criteria; criteria name declared phases (redesigned after the outside voice showed the draft rule could never fire)"
+  ],
+  "fixture": "derived",
+  "fixture_generator": "references/fixture-generator-skeleton.py (colon-syntax phase moves, mandatory postcondition --expect-rule/--expect-count or --expect-clean, fidelity + membership + count self-assertions, atomic/exclusive writes)",
+  "regression": "exact-rule exact-count (R1 x3 on the fixture, asserted by edge identity too); blind inversion unsupported; --expect-count 0 rejected; regression mode runs only the target rule",
+  "design_review": "gstack-plan-eng-review (4 findings) + Codex outside voice (14 findings: 11 absorbed, 1 partial, 2 tension - R1 scalar semantics resolved in round 1 by declaring the partial order as adapter data; skeleton-vs-template rejected per handoff mandate)",
+  "adversary_rounds": 3,
+  "adversary_reviewer": "OpenAI Codex (codex exec, read-only, high reasoning effort); prompts and outputs preserved in session scratchpad adversary-round{1,2,3}.md / adv{1,2,3}-out.md",
+  "adversary_findings": {"round1": "11 P1 + 4 P2", "round2": "8 P1 + 2 P2 (verification: 6 HELD, 4 NOT HELD)", "round3": "2 P1 + 1 P2 (verification: 8/10 HELD)"},
+  "adversary_loop_gain": "converging: 15 -> 10 -> 3",
+  "adversary_verdict": "round-3 P1s (sibling __getattr__ escape, predictable-tmpfile race) fixed and covered by selftest cases; those final fixes are verified by the 72-case selftest, NOT by a fourth adversary round (skill caps at three)",
+  "verification": "references/skeleton-selftest.sh: 72 cases, all passing, incl. exact edge identity, white-box crash-wrapper cases, generator postconditions, hostile-sibling imports",
+  "skipped": [
+    "CI wiring - no CI exists for the skill dir; skeleton-selftest.sh is the runnable equivalent",
+    "cycle detection - R1 is per-edge; a transitive violation always contains a direct violating edge",
+    "byte-exact line endings in generator output - documented limit (LF-normalized line-content fidelity)",
+    "Unicode component names - demo enforces canonical ASCII names; adapters own their own policy",
+    "fourth adversary round - loop gain converging and skill caps at three rounds"
+  ],
+  "status": "complete 2026-08-08"
+}

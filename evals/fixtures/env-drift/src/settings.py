@@ -1,0 +1,9 @@
+import os
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+REDIS_URL = os.environ["REDIS_URL"]
+STRIPE_WEBHOOK_SECRET = os.environ["STRIPE_WEBHOOK_SECRET"]
+SESSION_SIGNING_KEY = os.environ["SESSION_SIGNING_KEY"]
+EXPORT_BUCKET = os.environ["EXPORT_BUCKET"]
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "info")
