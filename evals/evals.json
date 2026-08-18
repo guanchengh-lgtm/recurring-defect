@@ -1,0 +1,75 @@
+{
+  "skill_name": "recurring-defect",
+  "evals": [
+    {
+      "id": 0,
+      "name": "code-recurring-null-deref",
+      "prompt": "This is the third time we've shipped a crash from the same thing. Someone adds a new handler under src/handlers/ and forgets that ctx.session can be null when the request comes from the public webhook path - we've hit it in checkout.ts, in refund.ts, and now in subscription.ts this morning. Each time we just add an if-check and move on. CHANGELOG.md has the two previous 'fix: guard against null session' entries. I don't want to fix subscription.ts and wait for the fourth one. Can you sort this out properly?",
+      "expected_output": "A check (lint rule / AST script / test) that catches the class across all handlers, validated against a fixture reproducing at least one historical instance, wired into CI, failing closed on parse errors, with limits documented. Not just a null-check added to subscription.ts.",
+      "files": [
+        "fixtures/webhook-handlers/"
+      ],
+      "assertions": [
+        "Finds report.ts as a fourth, previously-unreported instance of the same defect",
+        "Produces a re-runnable check (script/rule/test), not only a fix to subscription.ts",
+        "Check is validated against a historical instance (checkout.ts or refund.ts before its guard)",
+        "Check is wired to a runnable command or CI step",
+        "Check exits non-zero when it finds a violation",
+        "Check fails closed (non-zero/error) on unparseable or missing input rather than reporting clean",
+        "States what the check does not cover"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "spec-phase-dependency-drift",
+      "prompt": "Our platform spec keeps breaking in the same way. We move something between delivery phases, and then two weeks later someone finds a phase-1 deliverable that quietly depends on a phase-3 component. It's happened with the audit-log store, and again with the tenant-provisioning API, and I only found the second one by accident. docs/spec.md is the authority and docs/adr/ has the decision records including the one where we moved audit-log. Review rounds keep turning up three or four of these and never seem to finish. What would actually stop this?",
+      "expected_output": "A machine-readable component/phase structure surfaced from the spec's existing prose, a phase-closure rule, a DERIVED fixture reproducing the audit-log move that asserts the rule fires with an exact count, fail-closed handling, and CI. Bonus: loop gain measured from review history.",
+      "files": [
+        "fixtures/platform-spec/"
+      ],
+      "assertions": [
+        "Surfaces a machine-readable component/phase structure derived from the spec's existing prose",
+        "Implements a phase-closure rule (no dependency on a later-phase component)",
+        "Flags the billing-ledger to audit-log-store edge (phase 1 depending on phase 3)",
+        "Flags the provisioning-API to capacity-planner edge (phase 1 depending on phase 3)",
+        "Regression fixture is DERIVED by a generator script, not hand-written",
+        "Regression asserts an exact count or exact rule, not merely that the fixture fails",
+        "Fails closed: structural problems (missing section, empty table, parse error) are fatal, not zero findings",
+        "Measures or reports loop gain from the three review rounds"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "config-drift-near-miss",
+      "prompt": "We've had two incidents now where a service shipped with a required env var missing from the deploy manifest - it's defined in config/schema.yaml and read in the code but nobody added it to deploy/*.yaml, so it only blows up in prod. ops/incidents/ has both write-ups. I've already got a script at scripts/check_env.sh that someone wrote after the first incident but it clearly didn't catch the second one. Can you take a look?",
+      "expected_output": "Should diagnose why the EXISTING check failed to catch incident two (likely fails open / silently skips), rather than writing a second check alongside it. Then harden it: fail closed, derived fixture from incident two, exact-count regression assertion, CI wiring.",
+      "files": [
+        "fixtures/env-drift/"
+      ],
+      "assertions": [
+        "Diagnoses why the existing check_env.sh failed to catch INC-038 (it warns then exits 0)",
+        "Hardens or replaces the existing check rather than adding a second parallel check",
+        "Resulting check exits non-zero when a required var is missing from a manifest",
+        "Regression reproduces INC-038 (SESSION_SIGNING_KEY absent from prod manifest)",
+        "Fails closed when the schema file or a deploy manifest is missing or unparseable",
+        "Detects the currently-missing EXPORT_BUCKET in deploy/prod.yaml"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "one-off-should-decline",
+      "prompt": "Postmortem from Tuesday is in ops/incidents/2026-07-inc-041.md - our billing reconciliation silently produced zeros for about six hours because the payments vendor changed their timestamp field from ISO-8601 to epoch millis without notice. src/vendor_client.py is where we parse it. You've built us these automated class-checks before and they've been great, so can you set one up for this too?",
+      "expected_output": "Should DECLINE to build class machinery and say why: one occurrence, external cause, no shape a rule could evaluate over our own artifacts. Should still deliver the right smaller fix - a contract/schema test asserting the vendor response shape, so the next silent change fails loudly. Failure mode to catch: building an elaborate checker anyway because the user asked nicely.",
+      "files": [
+        "fixtures/vendor-format-change/"
+      ],
+      "assertions": [
+        "Declines to build class-detection machinery for this incident",
+        "States the reason: single occurrence, external cause, no shape evaluable over our own artifacts",
+        "Still delivers a proportionate fix (contract/schema test asserting the vendor response shape)",
+        "Does NOT produce an elaborate multi-file checker with fixtures and CI wiring",
+        "Surfaces the swallowed-exception problem in parse_settled_at"
+      ]
+    }
+  ]
+}

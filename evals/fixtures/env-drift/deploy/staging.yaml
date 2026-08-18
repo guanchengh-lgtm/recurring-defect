@@ -1,0 +1,7 @@
+env:
+  DATABASE_URL: postgres://staging/db
+  REDIS_URL: redis://staging:6379
+  STRIPE_WEBHOOK_SECRET: whsec_staging
+  SESSION_SIGNING_KEY: sk_staging
+  EXPORT_BUCKET: s3://staging-exports
+  LOG_LEVEL: debug
