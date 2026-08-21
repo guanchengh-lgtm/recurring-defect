@@ -268,14 +268,15 @@ shape you named, the rule ids (or lifecycle event and residual metric for a refu
 fixture was derived or checked out, whether an adversary reviewed it and what the verdict was, and
 what you deliberately skipped.
 
-**Create it as soon as you have named the shape and picked a size — not at the end.** Steps 1 and 2
+**Create it as soon as you have named the shape and chosen size and form — not at the end.** Steps 1 and 2
 are the expensive part of this method: naming the defect's shape and spotting which structure the
 artifact already implies is the analysis that took fifteen review passes for a human in the worked
 example. Until you write it down it exists only in the conversation, and a session that dies during
 step 3 takes it with you. Write the file with the fields you have, then fill in the rest as you go.
 
 ```json
-{"size":"full","shape":"a consumer depends on a producer built in a later phase",
+{"size":"full","form":"rule that gates",
+ "shape":"a consumer depends on a producer built in a later phase",
  "structure":"docs/spec.md section 17 component table",
  "rules":["R1","R2"],"fixture":"derived","fixture_generator":"tools/make_fixture.py",
  "regression":"exact-count","adversary_rounds":2,"adversary_verdict":"trusted",

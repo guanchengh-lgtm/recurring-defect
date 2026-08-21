@@ -471,9 +471,7 @@ class FormSelectionDecisionTable(unittest.TestCase):
 
     def test_eval_scenario_sizes_refuse_hook_not_ci(self) -> None:
         # Concrete path: user asks for lint/CI on live coordinator state.
-        size = self.select_size(
-            observable_in_artifact=False, proposed_size="full"
-        )
+        size = self.select_size(observable_in_artifact=False, proposed_size="full")
         self.assertFalse(size["accept"])
         size = self.select_size(
             observable_in_artifact=False, proposed_size="refuse-hook"
