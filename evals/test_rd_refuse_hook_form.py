@@ -175,18 +175,39 @@ class SkillFormSelectionInterface(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.skill = SKILL.read_text(encoding="utf-8")
+        cls.sizing = _section(cls.skill, "Observability fork, then size and form")
         cls.forms = _section(cls.skill, "Three output forms")
         cls.method = _section(cls.skill, "The method")
 
+    def test_observability_fork_before_size_and_form(self) -> None:
+        sizing = _norm(self.sizing)
+        # Observability is decided first; Full/Light only apply on the artifact path.
+        self.assertIn(
+            "first decide whether the miss is observable in an artifact", sizing
+        )
+        self.assertIn("code", sizing)
+        self.assertIn("specification", sizing)
+        self.assertIn("ci-visible", sizing)
+        self.assertIn("size and form come only after that fork", sizing)
+        self.assertIn(
+            "if the miss is not observable there, **never select lint or ci as the check**",
+            sizing,
+        )
+        self.assertIn("do **not** pick full or light", sizing)
+        # Lifecycle path sizes refuse-hook work, not CI machinery.
+        self.assertIn("lifecycle-only miss", sizing)
+        self.assertIn("refuse-hook", sizing)
+        self.assertIn("not full/light ci", sizing)
+        self.assertIn("not ci wiring", sizing)
+        # Artifact path keeps Full/Light/Neither after the fork.
+        self.assertIn("only after the miss is artifact-observable", sizing)
+        self.assertIn("full method", sizing)
+        self.assertIn("light", sizing)
+        self.assertIn("neither", sizing)
+
     def test_observability_gate_before_form_choice(self) -> None:
         forms = _norm(self.forms)
-        # Must distinguish artifact-observable misses from lifecycle-only misses first.
-        self.assertIn(
-            "first decide whether the miss is observable in an artifact", forms
-        )
-        self.assertIn("code", forms)
-        self.assertIn("specification", forms)
-        self.assertIn("ci-visible", forms)
+        self.assertIn("observability fork", forms)
         self.assertIn(
             "if the miss is not observable there, **never select lint or ci as the check**",
             forms,
@@ -206,6 +227,9 @@ class SkillFormSelectionInterface(unittest.TestCase):
         )
         self.assertIn("residual", forms)
         self.assertIn("do not claim 100% coverage", forms)
+        self.assertIn(
+            "refuse-hooks are not a form for artifact-observable misses", forms
+        )
 
     def test_unfinished_step1_requires_event_and_residual(self) -> None:
         forms = _norm(self.forms)
@@ -223,10 +247,44 @@ class SkillFormSelectionInterface(unittest.TestCase):
 class FormSelectionDecisionTable(unittest.TestCase):
     """Executable decision table for the eval scenario.
 
-    Encodes the skill's public policy as a pure function and checks the
+    Encodes the skill's public policy as pure functions and checks the
     worker-spawn-wrong-slice inputs select refuse-hook, never lint/CI/unhooked
-    routine/skippable flag.
+    routine/skippable flag, and never Full/Light CI sizing on lifecycle-only misses.
     """
+
+    @staticmethod
+    def select_size(*, observable_in_artifact: bool, proposed_size: str) -> dict:
+        """Return size verdict after the observability fork."""
+        size = proposed_size.lower().strip()
+        if not observable_in_artifact:
+            if size in {"full", "light"}:
+                return {
+                    "accept": False,
+                    "size": None,
+                    "reason": "lifecycle-only miss must not select Full/Light CI machinery",
+                }
+            if size == "refuse-hook":
+                return {
+                    "accept": True,
+                    "size": "refuse-hook",
+                    "reason": "lifecycle-only miss sizes refuse-hook work, not CI",
+                }
+            return {
+                "accept": False,
+                "size": None,
+                "reason": "lifecycle-only miss requires refuse-hook sizing",
+            }
+        if size in {"full", "light", "neither"}:
+            return {
+                "accept": True,
+                "size": size,
+                "reason": "artifact-observable miss may size Full/Light/Neither",
+            }
+        return {
+            "accept": False,
+            "size": None,
+            "reason": "artifact-observable miss uses Full/Light/Neither, not refuse-hook size",
+        }
 
     @staticmethod
     def select_form(
@@ -249,12 +307,15 @@ class FormSelectionDecisionTable(unittest.TestCase):
                     "form": proposed,
                     "reason": "artifact-observable miss may use rule/advisory/lint/CI",
                 }
-            if proposed == "routine":
-                return {
-                    "accept": False,
-                    "form": None,
-                    "reason": "artifact-observable miss should use rule/advisory, not routine-only",
-                }
+            # No fallthrough into lifecycle forms.
+            return {
+                "accept": False,
+                "form": None,
+                "reason": (
+                    "artifact-observable miss accepts only rule/advisory/lint/CI; "
+                    "refuse-hook/routine forms are for lifecycle-only misses"
+                ),
+            }
 
         # Non-artifact miss path.
         if proposed in {"lint", "ci", "rule", "advisory"}:
@@ -269,7 +330,7 @@ class FormSelectionDecisionTable(unittest.TestCase):
                 "form": None,
                 "reason": "optional/skippable bypass is not a refuse-hook",
             }
-        if proposed in {"reminder", "checklist", "unhooked-routine"}:
+        if proposed in {"reminder", "checklist", "unhooked-routine", "routine"}:
             return {
                 "accept": False,
                 "form": None,
@@ -302,6 +363,27 @@ class FormSelectionDecisionTable(unittest.TestCase):
             "reason": "lifecycle refuse-hook with named residual",
         }
 
+    def test_lifecycle_size_rejects_full_and_light(self) -> None:
+        for bad in ("full", "light", "neither"):
+            got = self.select_size(observable_in_artifact=False, proposed_size=bad)
+            self.assertFalse(got["accept"], bad)
+            self.assertIsNone(got["size"])
+        got = self.select_size(
+            observable_in_artifact=False, proposed_size="refuse-hook"
+        )
+        self.assertTrue(got["accept"])
+        self.assertEqual(got["size"], "refuse-hook")
+
+    def test_artifact_size_allows_full_light_neither(self) -> None:
+        for size in ("full", "light", "neither"):
+            got = self.select_size(observable_in_artifact=True, proposed_size=size)
+            self.assertTrue(got["accept"], size)
+            self.assertEqual(got["size"], size)
+        refuse_size = self.select_size(
+            observable_in_artifact=True, proposed_size="refuse-hook"
+        )
+        self.assertFalse(refuse_size["accept"])
+
     def test_eval_scenario_rejects_lint_ci_skip_unhooked(self) -> None:
         base = dict(
             observable_in_artifact=False,
@@ -317,6 +399,7 @@ class FormSelectionDecisionTable(unittest.TestCase):
             "reminder",
             "checklist",
             "unhooked-routine",
+            "routine",
         ):
             got = self.select_form(proposed=bad, **base)
             self.assertFalse(got["accept"], bad)
@@ -372,6 +455,39 @@ class FormSelectionDecisionTable(unittest.TestCase):
         )
         self.assertTrue(got["accept"])
         self.assertEqual(got["form"], "lint")
+
+    def test_artifact_miss_rejects_refuse_hook_without_fallthrough(self) -> None:
+        for bad in ("refuse-hook", "routine-with-refuse-hook", "routine", "reminder"):
+            got = self.select_form(
+                observable_in_artifact=True,
+                lifecycle_event="spawn",
+                proposed=bad,
+                skippable_bypass=False,
+                residual_named=True,
+            )
+            self.assertFalse(got["accept"], bad)
+            self.assertIsNone(got["form"])
+            self.assertIn("artifact-observable", got["reason"])
+
+    def test_eval_scenario_sizes_refuse_hook_not_ci(self) -> None:
+        # Concrete path: user asks for lint/CI on live coordinator state.
+        size = self.select_size(
+            observable_in_artifact=False, proposed_size="full"
+        )
+        self.assertFalse(size["accept"])
+        size = self.select_size(
+            observable_in_artifact=False, proposed_size="refuse-hook"
+        )
+        form = self.select_form(
+            observable_in_artifact=False,
+            lifecycle_event="spawn",
+            proposed="refuse-hook",
+            skippable_bypass=False,
+            residual_named=True,
+        )
+        self.assertTrue(size["accept"])
+        self.assertTrue(form["accept"])
+        self.assertEqual(form["event"], "spawn")
 
     def test_measure_residual_matches_accepted_form(self) -> None:
         """End-to-end: measure.md residual is what spawn hook cannot observe."""
