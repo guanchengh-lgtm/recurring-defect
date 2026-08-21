@@ -225,20 +225,28 @@ The catalogue below came from adversarial review of a real checker. Check yours 
 
 ## Deliverables
 
-A completed pass leaves behind, scaled to the size you chose:
+A completed pass leaves behind, scaled to the size and form you chose.
+
+For a **rule that gates** or an **advisory rule** (miss observable in an artifact):
 
 1. The **structure** (registry, manifest, schema, annotations) in or beside the artifact, with its coverage and limits stated.
 2. The **checker**, with rules separated into gateable findings and fatal structural failures.
 3. The **derived fixture** plus its generator, with the generator's own assertions. *(Light: a checked-out historical revision instead.)*
-4. A **CI step** running the checker and asserting the fixture still fires by exact rule and count.
+4. A **CI step** running the checker and asserting the fixture still fires by exact rule and count. *(Advisory may report without gating.)*
 5. A short note in the project's durable docs: what class this catches, what it does not, and how to run it.
 6. A **claims file** — see below.
 
+For a **routine with a refuse-hook** (miss only at a lifecycle event), do **not** substitute lint or
+CI. Leave behind: the refuse-hook at cleanup, spawn, or done that rejects the illegal state; a named
+residual and how it is measured (never claim 100% coverage); a short note of class, residual, and
+hook location; and a **claims file**. A documented routine may accompany the hook only for the residual.
+
 ### Emit claims, do not leave them to be inferred
 
-Write a small machine-readable file recording what you actually did: the size you chose, the shape
-you named, the rule ids, whether the fixture was derived or checked out, whether an adversary
-reviewed it and what the verdict was, and what you deliberately skipped.
+Write a small machine-readable file recording what you actually did: the size and form you chose, the
+shape you named, the rule ids (or lifecycle event and residual metric for a refuse-hook), whether the
+fixture was derived or checked out, whether an adversary reviewed it and what the verdict was, and
+what you deliberately skipped.
 
 **Create it as soon as you have named the shape and picked a size — not at the end.** Steps 1 and 2
 are the expensive part of this method: naming the defect's shape and spotting which structure the
