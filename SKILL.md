@@ -51,8 +51,11 @@ the method running on autopilot — which is the specific way this skill turns i
 
 ## Three output forms
 
-Not every class becomes a gate. Decide the form early, because steps 4–8 apply differently to each,
-and shipping the wrong form is how checks get ignored or distrusted.
+Not every class becomes a gate. **First decide whether the miss is observable in an artifact** —
+code, a specification, or CI-visible structure. Only then select a form: a rule or advisory may
+inspect that artifact; if the miss is not observable there, **never select lint or CI as the
+check**. Decide early, because steps 4–8 apply differently to each, and shipping the wrong form is
+how checks get ignored or distrusted.
 
 **A rule that gates.** The class is decidable from structure, with few enough false positives that
 people accept a red build. Most of this skill assumes this form.
@@ -65,15 +68,16 @@ lexically separable from absolutes about policy. It shipped advisory: it turns a
 into a 51-line reading list, which is worth having and is not automation. Say plainly which it is;
 a noisy rule wired to a gate teaches people to ignore the gate, and that costs you the good rules too.
 
-**A routine.** The class is not mechanically detectable, but the conditions that produce it are
-observable. Encode a documented practice plus an instrument that reports a number — loop gain per
-review round, for instance. Routines decay, because nobody runs them, so give the routine a
-fail-closed hook wherever one exists. Not "remember to record findings" but "CI fails if a review
-lands with no findings recorded." That enforces the *recording*, which keeps the instrument honest,
-without capping the activity — see the cap test below for why that distinction decides whether a
-routine helps or just gets routed around.
+**A routine with a refuse-hook.** Use this only when the miss is not observable in an artifact but
+an actual lifecycle event is: cleanup, spawn, or done. The hook at that event must refuse the
+illegal state itself (for example, refuse to spawn a worker assigned the wrong slice). An
+optional/skippable flag, a reminder, or an unhooked checklist is not a hook and is insufficient.
+For every refuse-hook, name what the hook still cannot observe and measure that residual. A
+documented routine is allowed only alongside the refuse-hook; it may cover the residual but cannot
+substitute for refusal at the event. Do not claim 100% coverage.
 
-If you cannot say which form you are building, you have not finished step 1.
+If you cannot say which form you are building, what artifact makes the miss observable, or which
+lifecycle event refuses it and what residual is measured, you have not finished step 1.
 
 ## The method
 
@@ -110,8 +114,9 @@ Usually small. The work was in steps 1 and 2.
 Prefer rules that need no insight from the reader. In the worked example, the reversibility judgment ("does deferring this destroy value or merely delay it?") took fifteen review passes for a human to reach — but the *graph* property that exposed it needed no insight at all. Find the mechanical shadow of the human judgment. Encode the judgment separately if you can, as a second rule, so it cannot be quietly reversed later.
 
 If the rule turns out to be noisy or undecidable at this point, go back to *Three output forms* and
-ship it advisory or as a routine. That is a legitimate result, not a failure — what is not legitimate
-is gating on a rule you privately know is noisy.
+ship it advisory or as a routine with a refuse-hook. That is a legitimate result, not a failure —
+what is not legitimate is gating on a rule you privately know is noisy or using a routine without
+refusal at the observable lifecycle event.
 
 ### 4. Prove the rule catches the original bug
 
