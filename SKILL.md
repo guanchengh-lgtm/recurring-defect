@@ -21,10 +21,29 @@ Skip this for a genuine one-off. Machinery has a carrying cost, and a rule that 
 
 **If there is loop history, measure it before you decide.** Count findings closed versus findings introduced per round. If a round closes 3 and opens 7, the ratio is 2.33 and the loop is the problem, not the findings — no amount of further patching converges. That single number is often the strongest argument for stopping and building the check.
 
-## Size the response before you build
+## Observability fork, then size and form
 
-Deciding *that* it is a class is not the same as deciding *how much* to build. This is the step
-most easily skipped and the one that most often makes the method a bad trade.
+Deciding *that* it is a class is not the same as deciding *how much* to build or *which form* the
+check takes. This is the step most easily skipped and the one that most often makes the method a
+bad trade.
+
+**First decide whether the miss is observable in an artifact** — code, a specification, or
+CI-visible structure. Size and form come only after that fork. If the miss is not observable there,
+**never select lint or CI as the check**, and do **not** pick Full or Light: those sizes assume CI
+or in-repo check machinery that cannot see the event.
+
+### Lifecycle-only miss → refuse-hook (not Full/Light CI)
+
+When the miss exists only at a lifecycle event — cleanup, spawn, or done — select a **refuse-hook
+at that event**. The hook must refuse the illegal state itself (for example, refuse to spawn a
+worker assigned the wrong slice). An optional/skippable flag, a reminder, or an unhooked checklist
+is not a hook and is insufficient. A documented routine is allowed only alongside the refuse-hook;
+it may cover residual cases the hook cannot see but cannot substitute for refusal at the event.
+Name what the hook still cannot observe and measure that residual. Do not claim 100% coverage.
+Scale is the hook, residual measurement, optional paired routine, and a claims file — not CI
+wiring, not a fixture generator for a gate that cannot observe the event.
+
+### Artifact-observable miss → size Full / Light / Neither, then form
 
 The full method produces a lot: structure, checker, fixture generator, regression assertion, CI
 wiring, adversarial rounds. Measured on matched tasks, running it fully cost **3-4x the tokens and
@@ -33,7 +52,7 @@ rounds, that was clearly worth it. On a config check where a good engineer had a
 solid answer in a fraction of the time, the extra bought real but marginal findings at twelve times
 the cost. Over-building is a failure mode, not thoroughness.
 
-Pick by blast radius, and pick before step 1:
+Only after the miss is artifact-observable, pick by blast radius, and pick before step 1:
 
 - **Full method** — the check will gate CI, or the artifact is one that others depend on and cannot
   easily inspect: a specification, a shared schema, a deploy manifest, an interface contract.
@@ -51,29 +70,34 @@ the method running on autopilot — which is the specific way this skill turns i
 
 ## Three output forms
 
-Not every class becomes a gate. Decide the form early, because steps 4–8 apply differently to each,
-and shipping the wrong form is how checks get ignored or distrusted.
+Not every class becomes a gate. The observability fork above already decided whether the miss is in
+an artifact. Only then select a form: a rule or advisory may inspect that artifact; if the miss is
+not observable there, **never select lint or CI as the check**. Decide early, because steps 4–8
+apply differently to each, and shipping the wrong form is how checks get ignored or distrusted.
 
-**A rule that gates.** The class is decidable from structure, with few enough false positives that
-people accept a red build. Most of this skill assumes this form.
+**A rule that gates.** Artifact-observable only. The class is decidable from structure, with few
+enough false positives that people accept a red build. Most of this skill assumes this form.
 
-**An advisory rule that reports.** The class is real, but its true boundary is not cleanly separable
-from legitimate cases. In the worked example, a rule flagging unconditional claims ("never",
-"always", "guaranteed") went from 189 hits to 51 after narrowing — and many of the 51 were *correct*
-absolutes. The actual defect was absolutes about runtime behaviour under failure, which is not
-lexically separable from absolutes about policy. It shipped advisory: it turns a 1,300-line document
-into a 51-line reading list, which is worth having and is not automation. Say plainly which it is;
-a noisy rule wired to a gate teaches people to ignore the gate, and that costs you the good rules too.
+**An advisory rule that reports.** Artifact-observable only. The class is real, but its true
+boundary is not cleanly separable from legitimate cases. In the worked example, a rule flagging
+unconditional claims ("never", "always", "guaranteed") went from 189 hits to 51 after narrowing —
+and many of the 51 were *correct* absolutes. The actual defect was absolutes about runtime
+behaviour under failure, which is not lexically separable from absolutes about policy. It shipped
+advisory: it turns a 1,300-line document into a 51-line reading list, which is worth having and is
+not automation. Say plainly which it is; a noisy rule wired to a gate teaches people to ignore the
+gate, and that costs you the good rules too.
 
-**A routine.** The class is not mechanically detectable, but the conditions that produce it are
-observable. Encode a documented practice plus an instrument that reports a number — loop gain per
-review round, for instance. Routines decay, because nobody runs them, so give the routine a
-fail-closed hook wherever one exists. Not "remember to record findings" but "CI fails if a review
-lands with no findings recorded." That enforces the *recording*, which keeps the instrument honest,
-without capping the activity — see the cap test below for why that distinction decides whether a
-routine helps or just gets routed around.
+**A routine with a refuse-hook.** Use this only when the miss is not observable in an artifact but
+an actual lifecycle event is: cleanup, spawn, or done. Refuse-hooks are not a form for
+artifact-observable misses. The hook at that event must refuse the illegal state itself (for
+example, refuse to spawn a worker assigned the wrong slice). An optional/skippable flag, a
+reminder, or an unhooked checklist is not a hook and is insufficient. For every refuse-hook, name
+what the hook still cannot observe and measure that residual. A documented routine is allowed only
+alongside the refuse-hook; it may cover the residual but cannot substitute for refusal at the
+event. Do not claim 100% coverage.
 
-If you cannot say which form you are building, you have not finished step 1.
+If you cannot say which form you are building, what artifact makes the miss observable, or which
+lifecycle event refuses it and what residual is measured, you have not finished step 1.
 
 ## The method
 
@@ -110,8 +134,9 @@ Usually small. The work was in steps 1 and 2.
 Prefer rules that need no insight from the reader. In the worked example, the reversibility judgment ("does deferring this destroy value or merely delay it?") took fifteen review passes for a human to reach — but the *graph* property that exposed it needed no insight at all. Find the mechanical shadow of the human judgment. Encode the judgment separately if you can, as a second rule, so it cannot be quietly reversed later.
 
 If the rule turns out to be noisy or undecidable at this point, go back to *Three output forms* and
-ship it advisory or as a routine. That is a legitimate result, not a failure — what is not legitimate
-is gating on a rule you privately know is noisy.
+ship it advisory or as a routine with a refuse-hook. That is a legitimate result, not a failure —
+what is not legitimate is gating on a rule you privately know is noisy or using a routine without
+refusal at the observable lifecycle event.
 
 ### 4. Prove the rule catches the original bug
 
@@ -220,29 +245,38 @@ The catalogue below came from adversarial review of a real checker. Check yours 
 
 ## Deliverables
 
-A completed pass leaves behind, scaled to the size you chose:
+A completed pass leaves behind, scaled to the size and form you chose.
+
+For a **rule that gates** or an **advisory rule** (miss observable in an artifact):
 
 1. The **structure** (registry, manifest, schema, annotations) in or beside the artifact, with its coverage and limits stated.
 2. The **checker**, with rules separated into gateable findings and fatal structural failures.
 3. The **derived fixture** plus its generator, with the generator's own assertions. *(Light: a checked-out historical revision instead.)*
-4. A **CI step** running the checker and asserting the fixture still fires by exact rule and count.
+4. A **CI step** running the checker and asserting the fixture still fires by exact rule and count. *(Advisory may report without gating.)*
 5. A short note in the project's durable docs: what class this catches, what it does not, and how to run it.
 6. A **claims file** — see below.
 
+For a **routine with a refuse-hook** (miss only at a lifecycle event), do **not** substitute lint or
+CI. Leave behind: the refuse-hook at cleanup, spawn, or done that rejects the illegal state; a named
+residual and how it is measured (never claim 100% coverage); a short note of class, residual, and
+hook location; and a **claims file**. A documented routine may accompany the hook only for the residual.
+
 ### Emit claims, do not leave them to be inferred
 
-Write a small machine-readable file recording what you actually did: the size you chose, the shape
-you named, the rule ids, whether the fixture was derived or checked out, whether an adversary
-reviewed it and what the verdict was, and what you deliberately skipped.
+Write a small machine-readable file recording what you actually did: the size and form you chose, the
+shape you named, the rule ids (or lifecycle event and residual metric for a refuse-hook), whether the
+fixture was derived or checked out, whether an adversary reviewed it and what the verdict was, and
+what you deliberately skipped.
 
-**Create it as soon as you have named the shape and picked a size — not at the end.** Steps 1 and 2
+**Create it as soon as you have named the shape and chosen size and form — not at the end.** Steps 1 and 2
 are the expensive part of this method: naming the defect's shape and spotting which structure the
 artifact already implies is the analysis that took fifteen review passes for a human in the worked
 example. Until you write it down it exists only in the conversation, and a session that dies during
 step 3 takes it with you. Write the file with the fields you have, then fill in the rest as you go.
 
 ```json
-{"size":"full","shape":"a consumer depends on a producer built in a later phase",
+{"size":"full","form":"rule that gates",
+ "shape":"a consumer depends on a producer built in a later phase",
  "structure":"docs/spec.md section 17 component table",
  "rules":["R1","R2"],"fixture":"derived","fixture_generator":"tools/make_fixture.py",
  "regression":"exact-count","adversary_rounds":2,"adversary_verdict":"trusted",

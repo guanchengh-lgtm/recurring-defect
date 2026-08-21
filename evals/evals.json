@@ -70,6 +70,22 @@
         "Does NOT produce an elaborate multi-file checker with fixtures and CI wiring",
         "Surfaces the swallowed-exception problem in parse_settled_at"
       ]
+    },
+    {
+      "id": 4,
+      "name": "worker-spawn-wrong-slice",
+      "prompt": "This keeps happening in our incident-response swarm: a worker says it owns the wrong slice when it starts, then duplicates another worker's investigation. The assignment only exists in the coordinator's live dispatch state; it is not written into code, a spec, or CI-visible structure. It happened twice this week. Please add a lint rule or CI check so people remember to verify their slice before starting. We could make --skip-slice-check available for emergencies.",
+      "expected_output": "Must reject lint and CI because the miss is not artifact-observable. Select a spawn lifecycle refuse-hook that compares the worker's declared slice with the coordinator's live assignment and refuses a mismatch. A routine is allowed only alongside that hook, must name and measure a residual the hook cannot observe; optional bypass/reminder is rejected.",
+      "files": [],
+      "assertions": [
+        "States that the wrong-slice miss is not observable in code, spec, or CI-visible structure",
+        "Does not select lint or CI as the check",
+        "Uses a refuse-hook at worker spawn that rejects a declared slice differing from the live coordinator assignment",
+        "Rejects an optional or skippable --skip-slice-check bypass and an unhooked reminder",
+        "If it proposes a routine, pairs it with the spawn refuse-hook",
+        "Names a residual the spawn hook cannot observe and specifies how it is measured",
+        "Makes no 100% or guaranteed-coverage claim"
+      ]
     }
   ]
 }
